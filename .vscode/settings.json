@@ -1,0 +1,21 @@
+{
+    "files.associations": {
+        "*.json": "jsonc",
+        "*.m": "matlab",
+        "cerrno": "c",
+        "modbus.h": "c",
+        "unistd.h": "c",
+        "iostream": "cpp",
+        "ostream": "cpp",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "random": "cpp",
+        "vector": "cpp",
+        "system_error": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp"
+    }
+}
