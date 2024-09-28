@@ -1,5 +1,5 @@
 #include <iostream>
-#include <modbus/modbus.h>
+#include <modbus.h>
 #include <errno.h>
 #include <vector>
 #include <unistd.h> // sleep

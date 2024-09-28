@@ -1,33 +1,28 @@
 #include <iostream>
-#include <modbus/modbus.h>
+#include <modbus.h>
 #include <errno.h>
 #include <vector>
+
+
 using namespace std;
 
 
-int save_exit(modbus_t *ctx) {
+int close_and_free_modbus(modbus_t *ctx) {
     modbus_close(ctx);
     modbus_free(ctx);
-    return -1;
+    return 0;
 }
 void counter_clear(vector<vector<uint8_t>>& counter_mode, modbus_t *ctx) {
-    cout << "Clearing counter... " << endl;
+    cout << endl << "Clearing counter... " << endl;
     for(int i = 0; i < 7; i++) {
         counter_mode[i][1] = 1; // Counter mode: Clear
         counter_mode[i][2] = 1; // Counter mode: Clear overflow
         if(modbus_write_bits(ctx, (32 + i*4), 4, counter_mode[i].data()) == -1) {
             cout << "Failed to write bits: " << modbus_strerror(errno) << endl;
-            save_exit(ctx);
+            close_and_free_modbus(ctx);
         }
-        // ADAM会清0后相应寄存器自动重置0，不需要自己设置
-        // sleep(0.2); // 200ms
-        // counter_mode[i][1] = 0;
-        // counter_mode[i][2] = 0;
-        // if(modbus_write_bits(ctx, (32 + i*4), 4, counter_mode[i].data()) == -1) {
-        //     cout << "Failed to write bits: " << modbus_strerror(errno) << endl;
-        //     save_exit(ctx);
-        // }
     }
+    cout << "Finish clearing" << endl << endl;
 }
 
 // 用于监视DI的计数
@@ -47,7 +42,7 @@ int main() {
     // connect
     if(modbus_connect(ctx) == -1) {
         cout << "Connection to slave failed: " << modbus_strerror(errno) << endl;
-        save_exit(ctx);
+        close_and_free_modbus(ctx);
     }
 
     // 设置应答延时1s
@@ -63,29 +58,54 @@ int main() {
     }
     if(modbus_write_registers(ctx, 78, 7, pin_mode.data()) == -1) {
         cout << "Failed to write registers: " << modbus_strerror(errno) << endl;
-        save_exit(ctx);
+        close_and_free_modbus(ctx);
     }
 
     // counter start
     vector<vector<uint8_t>> counter_mode(7, vector<uint8_t>(4, 0));
-    for(int i = 4; i < 7; i++) {
+    for(int i = 0; i < 7; i++) {
         counter_mode[i][0] = 1; // Counter mode: START
-        // 开始计数
-        if(modbus_write_bits(ctx, (32 + i*4), 4, counter_mode[i].data()) == -1) {
-            cout << "Failed to write bits: " << modbus_strerror(errno) << endl;
-            save_exit(ctx);
+        counter_mode[i][1] = 1; // Counter mode: Clear
+        // counter_mode[i][2] = 1; // Counter mode: Clear overflow automatically
+        counter_mode[i][3] = 1; // State: 重新上电清除计数
+        // 写入线圈(单线圈写入)
+        for(int j = 0; j < 4; j++) {
+            if(modbus_write_bit(ctx, (32 + i*4 + j), static_cast<bool>(counter_mode[i][j])) == -1) {
+                cout << "Failed to write bit: " << modbus_strerror(errno) << endl;
+                close_and_free_modbus(ctx);
+            }
         }
+        // 读改动
+        modbus_read_bits(ctx, (32 + i*4), 4, counter_mode[i].data());
+        for(auto c:counter_mode[i]) {
+            cout << static_cast<int>(c) << " ";
+        }
+        cout << endl;
     }
 
     // clear counter
-    counter_clear(counter_mode, ctx);
+    // counter_clear(counter_mode, ctx);
+
+    // set filter（32bit）
+    vector<uint16_t> filter_L(14, 0);
+    vector<uint16_t> filter_H(14, 0);
+    uint16_t L_width = 150; // 15ms
+    uint16_t H_width = 150; // 15ms
+    for(int i = 0; i < 14; i += 2) {
+        filter_L[i] = L_width;
+        filter_H[i] = H_width;
+    }
+    if(modbus_write_registers(ctx, 93, 14, filter_L.data()) == -1 || modbus_write_registers(ctx, 107, 14, filter_H.data()) == -1) {
+        cout << "Failed to write registers: " << modbus_strerror(errno) << endl;
+        close_and_free_modbus(ctx);
+    }
 
     // 读取DI的计数（32bit）
     vector<uint16_t> counter(14, 0);
     while(true) {
         if(modbus_read_registers(ctx, 0, 14, counter.data()) == -1) {
             cout << "Failed to read registers: " << modbus_strerror(errno) << endl;
-            save_exit(ctx);
+            close_and_free_modbus(ctx);
         }
         cout << "DI counter: ";
         for(int i = 0; i < 14; i += 2) {
@@ -95,7 +115,5 @@ int main() {
         sleep(1);
     }
     
-    modbus_close(ctx);
-    modbus_free(ctx);
-    return 0;
+    close_and_free_modbus(ctx);
 }

@@ -5,19 +5,6 @@
 
 using namespace std;
 
-// 进制转换 16bit -> 32bit (unimportant)
-// vector<uint32_t> convert16to32(const vector<uint16_t>& input) {
-//     vector<uint32_t> output;
-//     for (size_t i = 0; i < input.size(); i += 2) {
-//         uint32_t value = input[i];
-//         if (i + 1 < input.size()) {
-//             value |= (static_cast<uint32_t>(input[i + 1]) << 16);
-//         }
-//         output.push_back(value);
-//     }
-//     return output;
-// }
-
 int main() {
     modbus_t *ctx = nullptr;
     int DO;
@@ -48,12 +35,6 @@ int main() {
 
     //设定DI4~7为脉冲输出（pulse）模式
     vector<uint16_t> pin_mode(8, 0);
-    // if(modbus_read_registers(ctx, 85, 8, pin_mode.data()) == -1) {
-    //     cout << "Failed to read registers: " << modbus_strerror(errno) << endl;
-    //     modbus_close(ctx);
-    //     modbus_free(ctx);
-    //     return -1;
-    // }
     for(int i = 4; i < 8; i++) {
         pin_mode[i] = 1;
     }
@@ -90,17 +71,6 @@ int main() {
         modbus_free(ctx);
         return -1;
     }
-
-    // 打印寄存器的值
-    // if(modbus_read_registers(ctx, 30, 16, Tons.data()) == -1) {
-    //     cout << "Failed to read registers: " << modbus_strerror(errno) << endl;
-    //     modbus_close(ctx);
-    //     modbus_free(ctx);
-    //     return -1;
-    // }
-    // for(int i = 0; i < 16; i += 2) {
-    //     cout << "Tons" << i << ": " << Tons[i] << endl;
-    // }
 
     // 设置脉冲输出次数 （32bit）
     vector<uint16_t> pulse_count(16, 0);
